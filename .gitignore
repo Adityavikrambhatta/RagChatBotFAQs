@@ -1,0 +1,13 @@
+.venv/
+.venv312/
+__pycache__/
+.pytest_cache/
+.DS_Store
+.env
+*.egg-info/
+data/incoming/
+data/chroma/
+data/corpora/
+data/cache/
+*.pyc
+!data/.gitkeep
