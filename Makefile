@@ -1,7 +1,7 @@
 PYTHON := ./.venv312/bin/python
 PIP := ./.venv312/bin/pip
 
-.PHONY: setup serve test build-sample
+.PHONY: setup serve test build-sample frontend-install frontend-dev frontend-build
 
 setup:
 	python3.12 -m venv .venv312
@@ -10,6 +10,15 @@ setup:
 
 serve:
 	$(PYTHON) -m app.cli serve
+
+frontend-install:
+	cd frontend && npm install
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build
 
 test:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest tests/test_ingestion.py

@@ -57,3 +57,7 @@ class BuildResponse(BaseModel):
     chunk_count: int
     skipped: bool
     manifest_path: str
+
+
+class UploadBuildResponse(BuildResponse):
+    uploaded_files: list[str]

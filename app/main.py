@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
-from app.schemas import BuildResponse, ChatRequest, ChatResponse, CorpusBuildRequest, HealthResponse
+from app.schemas import BuildResponse, ChatRequest, ChatResponse, CorpusBuildRequest, HealthResponse, UploadBuildResponse
 from app.service import RagFaqService
 
 app = FastAPI(title="RAG ChatBot FAQs", version="0.1.0")
@@ -48,6 +48,28 @@ def build_corpus(payload: CorpusBuildRequest, service: RagFaqService = Depends(g
             force_rebuild=payload.force_rebuild,
         )
     except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/corpora/upload-build", response_model=UploadBuildResponse)
+async def upload_and_build_corpus(
+    corpus_name: str = Form(...),
+    force_rebuild: bool = Form(False),
+    replace_existing: bool = Form(True),
+    files: list[UploadFile] = File(...),
+    service: RagFaqService = Depends(get_service),
+) -> UploadBuildResponse:
+    try:
+        payload: list[tuple[str, bytes]] = []
+        for file in files:
+            payload.append((file.filename or "upload.bin", await file.read()))
+        return service.upload_and_build_corpus(
+            corpus_name=corpus_name,
+            files=payload,
+            force_rebuild=force_rebuild,
+            replace_existing=replace_existing,
+        )
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

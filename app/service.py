@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from app.embeddings import build_embedding_model
 from app.generation import AnswerGenerator
 from app.ingestion import ChunkRecord, dump_manifest, load_file, sha256_for_file, supported_files_in
 from app.retrieval import HybridRetriever
-from app.schemas import BuildResponse, CorpusRecord, RetrievalHit
+from app.schemas import BuildResponse, CorpusRecord, RetrievalHit, UploadBuildResponse
 from app.vector_store import ChromaVectorStore
 
 
@@ -88,6 +89,38 @@ class RagFaqService:
             manifest_path=str(manifest_path),
         )
 
+    def upload_and_build_corpus(
+        self,
+        *,
+        corpus_name: str,
+        files: list[tuple[str, bytes]],
+        force_rebuild: bool = False,
+        replace_existing: bool = True,
+    ) -> UploadBuildResponse:
+        if not files:
+            raise ValueError("At least one file must be uploaded.")
+
+        corpus_slug = self._normalize_corpus_name(corpus_name)
+        target_dir = self.settings.incoming_dir / corpus_slug
+        if replace_existing and target_dir.exists():
+            shutil.rmtree(target_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        uploaded_files: list[str] = []
+        for original_name, content in files:
+            safe_name = Path(original_name).name.strip()
+            if not safe_name:
+                continue
+            destination = target_dir / safe_name
+            destination.write_bytes(content)
+            uploaded_files.append(safe_name)
+
+        if not uploaded_files:
+            raise ValueError("Uploaded files were empty or invalid.")
+
+        result = self.build_corpus(corpus_name=corpus_slug, input_dir=target_dir, force_rebuild=force_rebuild)
+        return UploadBuildResponse(**result.model_dump(), uploaded_files=uploaded_files)
+
     def list_corpora(self) -> list[CorpusRecord]:
         records: list[CorpusRecord] = []
         for manifest in sorted(self.settings.corpora_dir.glob("*/manifest.json")):
@@ -105,7 +138,7 @@ class RagFaqService:
         return records
 
     def answer_question(self, *, question: str, corpus_name: str, top_k: int) -> tuple[str, list[RetrievalHit]]:
-        collection_name = self.settings.collection_name_for(corpus_name)
+        collection_name = self.settings.collection_name_for(self._normalize_corpus_name(corpus_name))
         vector_store = ChromaVectorStore(
             persist_directory=str(self.settings.chroma_dir.resolve()),
             collection_name=collection_name,
@@ -125,3 +158,10 @@ class RagFaqService:
             for hit in hits
         ]
         return answer, citations
+
+    @staticmethod
+    def _normalize_corpus_name(corpus_name: str) -> str:
+        normalized = "-".join(corpus_name.strip().split()).lower()
+        if not normalized:
+            raise ValueError("Corpus name cannot be empty.")
+        return normalized

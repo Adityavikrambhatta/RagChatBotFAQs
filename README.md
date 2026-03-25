@@ -11,6 +11,7 @@ Local-first RAG chatbot for support FAQs, spreadsheet-based error catalogs, and 
   - semantic vector search
   - keyword and error-code matching
 - Answers user questions through a FastAPI API
+- Includes a React/Vite frontend for corpus upload, build, and chat
 - Can run fully local with Ollama for generation, or fall back to extractive answers if no chat model is configured
 
 ## Architecture
@@ -120,6 +121,24 @@ python -m app.cli serve
 
 Open Swagger UI at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
+## Start the frontend
+
+The frontend defaults to talking to the backend at `http://127.0.0.1:8010`.
+
+```bash
+cd /Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/frontend
+npm install
+npm run dev
+```
+
+Open the app at [http://127.0.0.1:5173](http://127.0.0.1:5173)
+
+If your API runs on a different port, start the frontend with:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
+
 ## Optional: run with Ollama locally
 
 If you want local generation and optionally local embeddings:
@@ -147,6 +166,7 @@ The Ollama embeddings API supports local embedding generation over HTTP: [docs](
 - `GET /api/health`
 - `GET /api/corpora`
 - `POST /api/corpora/build`
+- `POST /api/corpora/upload-build`
 - `POST /api/chat`
 
 ## Example chat request
