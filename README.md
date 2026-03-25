@@ -33,6 +33,7 @@ Local-first RAG chatbot for support FAQs, spreadsheet-based error catalogs, and 
 ## Detailed delivery plan
 
 The full execution plan is documented in [docs/project-plan.md](/Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/docs/project-plan.md).
+The product and technical requirements are documented in [docs/requirements.md](/Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/docs/requirements.md).
 
 ### Phase 1: Foundation
 
