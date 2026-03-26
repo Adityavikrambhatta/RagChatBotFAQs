@@ -5,8 +5,9 @@ from dataclasses import dataclass
 
 from rapidfuzz import fuzz
 
+from app.config import Settings
 from app.embeddings import EmbeddingModel
-from app.vector_store import ChromaVectorStore, SearchResult
+from app.vector_store import ChromaVectorStore
 
 
 @dataclass(slots=True)
@@ -18,12 +19,16 @@ class RankedHit:
 
 
 class HybridRetriever:
-    def __init__(self, vector_store: ChromaVectorStore, embeddings: EmbeddingModel) -> None:
+    def __init__(self, vector_store: ChromaVectorStore, embeddings: EmbeddingModel, settings: Settings) -> None:
         self.vector_store = vector_store
         self.embeddings = embeddings
+        self.settings = settings
 
     def search(self, question: str, *, top_k: int) -> list[RankedHit]:
-        vector_hits = self.vector_store.query(embedding=self.embeddings.embed_query(question), top_k=max(top_k * 3, 10))
+        vector_hits = self.vector_store.query(
+            embedding=self.embeddings.embed_query(question),
+            top_k=max(top_k * self.settings.retrieval_query_multiplier, 12),
+        )
         keyword_hits = self._keyword_hits(question)
 
         merged: dict[str, RankedHit] = {}
@@ -32,13 +37,13 @@ class HybridRetriever:
                 chunk_id=hit.chunk_id,
                 text=hit.text,
                 metadata=hit.metadata,
-                score=max(hit.score, 0.0) * 0.65,
+                score=max(hit.score, 0.0) * self.settings.retrieval_vector_weight,
             )
 
         for hit in keyword_hits:
             current = merged.get(hit.chunk_id)
             if current:
-                current.score += hit.score * 0.35
+                current.score += hit.score * self.settings.retrieval_keyword_weight
             else:
                 merged[hit.chunk_id] = hit
 
@@ -60,8 +65,15 @@ class HybridRetriever:
                 score = max(score, fuzz.partial_ratio(question_clean, error_message.lower()) / 100.0)
             if maybe_code and error_code and maybe_code in error_code.lower():
                 score = max(score, 0.98)
-            if score >= 0.45:
-                ranked.append(RankedHit(chunk_id=entry.chunk_id, text=entry.text, metadata=entry.metadata, score=score))
+            if score >= self.settings.retrieval_keyword_min_score:
+                ranked.append(
+                    RankedHit(
+                        chunk_id=entry.chunk_id,
+                        text=entry.text,
+                        metadata=entry.metadata,
+                        score=score * self.settings.retrieval_keyword_weight,
+                    )
+                )
         return sorted(ranked, key=lambda item: item.score, reverse=True)[:20]
 
     @staticmethod

@@ -143,7 +143,7 @@ class RagFaqService:
             persist_directory=str(self.settings.chroma_dir.resolve()),
             collection_name=collection_name,
         )
-        retriever = HybridRetriever(vector_store, self.embeddings)
+        retriever = HybridRetriever(vector_store, self.embeddings, self.settings)
         hits = retriever.search(question, top_k=top_k)
         answer = self.generator.answer(question, hits)
         citations = [

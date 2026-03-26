@@ -13,6 +13,7 @@ Local-first RAG chatbot for support FAQs, spreadsheet-based error catalogs, and 
 - Answers user questions through a FastAPI API
 - Includes a React/Vite frontend for corpus upload, build, and chat
 - Can run fully local with Ollama for generation, or fall back to extractive answers if no chat model is configured
+- Supports switching the answer model via environment configuration
 
 ## Architecture
 
@@ -27,8 +28,8 @@ Local-first RAG chatbot for support FAQs, spreadsheet-based error catalogs, and 
    - Hybrid merge of vector similarity and fuzzy keyword matching
    - Error codes receive a high retrieval boost
 4. Answering
-   - Ollama-backed local generation if configured
-   - Fallback extractive answer when no local LLM is configured
+   - OpenAI or Ollama-backed generation if configured
+   - Fallback extractive answer when no LLM is configured
 
 ## Detailed delivery plan
 
@@ -158,9 +159,34 @@ ollama pull nomic-embed-text
 RAG_APP_OLLAMA_CHAT_MODEL=llama3.1
 RAG_APP_EMBEDDING_BACKEND=ollama
 RAG_APP_OLLAMA_EMBED_MODEL=nomic-embed-text
+RAG_APP_LLM_PROVIDER=ollama
 ```
 
 The Ollama embeddings API supports local embedding generation over HTTP: [docs](https://docs.ollama.com/api/embed)
+
+## Optional: run with OpenAI
+
+If you want stronger answer generation while keeping local retrieval:
+
+```bash
+RAG_APP_LLM_PROVIDER=openai
+RAG_APP_LLM_MODEL=gpt-5-mini
+RAG_APP_LLM_API_KEY=your_api_key_here
+RAG_APP_PROMPT_MODE=balanced
+```
+
+`balanced` makes the assistant synthesize across retrieved evidence more naturally. If you want the old behavior, switch to:
+
+```bash
+RAG_APP_PROMPT_MODE=strict
+```
+
+You can also loosen retrieval slightly with:
+
+```bash
+RAG_APP_DEFAULT_TOP_K=8
+RAG_APP_RETRIEVAL_KEYWORD_MIN_SCORE=0.35
+```
 
 ## API endpoints
 

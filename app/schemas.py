@@ -22,6 +22,8 @@ class HealthResponse(BaseModel):
     default_corpus: str
     embedding_backend: str
     ollama_chat_enabled: bool
+    llm_provider: str
+    llm_model: str | None = None
 
 
 class CorpusRecord(BaseModel):

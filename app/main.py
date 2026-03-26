@@ -31,6 +31,8 @@ def health(settings: Settings = Depends(get_settings)) -> HealthResponse:
         default_corpus=settings.default_corpus,
         embedding_backend=settings.embedding_backend,
         ollama_chat_enabled=bool(settings.ollama_chat_model),
+        llm_provider=settings.llm_provider,
+        llm_model=settings.llm_model or settings.ollama_chat_model,
     )
 
 
