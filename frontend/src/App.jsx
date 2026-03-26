@@ -47,8 +47,12 @@ export default function App() {
       setCorpora(items);
       if (items.length > 0) {
         const firstCorpus = items[0].corpus_name;
-        setSelectedCorpus((current) => current || firstCorpus);
-        setBuildCorpusName((current) => current || firstCorpus);
+        setSelectedCorpus((current) =>
+          !current || !items.some((corpus) => corpus.corpus_name === current) ? firstCorpus : current
+        );
+        setBuildCorpusName((current) =>
+          !current || !items.some((corpus) => corpus.corpus_name === current) ? firstCorpus : current
+        );
       }
     });
   }

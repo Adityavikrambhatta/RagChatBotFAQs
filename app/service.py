@@ -72,6 +72,8 @@ class RagFaqService:
             "corpus_name": corpus_name,
             "input_dir": str(input_dir),
             "collection_name": collection_name,
+            "embedding_backend": self.settings.embedding_backend,
+            "embedding_model": self._embedding_model_label(),
             "indexed_files": len(files),
             "chunk_count": len(chunk_records),
             "last_built_at": built_at,
@@ -138,7 +140,9 @@ class RagFaqService:
         return records
 
     def answer_question(self, *, question: str, corpus_name: str, top_k: int) -> tuple[str, list[RetrievalHit]]:
-        collection_name = self.settings.collection_name_for(self._normalize_corpus_name(corpus_name))
+        normalized_corpus = self._normalize_corpus_name(corpus_name)
+        self._validate_corpus_compatibility(normalized_corpus)
+        collection_name = self.settings.collection_name_for(normalized_corpus)
         vector_store = ChromaVectorStore(
             persist_directory=str(self.settings.chroma_dir.resolve()),
             collection_name=collection_name,
@@ -165,3 +169,42 @@ class RagFaqService:
         if not normalized:
             raise ValueError("Corpus name cannot be empty.")
         return normalized
+
+    def _manifest_path(self, corpus_name: str) -> Path:
+        return self.settings.corpora_dir / corpus_name / "manifest.json"
+
+    def _embedding_model_label(self) -> str:
+        backend = self.settings.embedding_backend
+        if backend == "sentence_transformers":
+            return self.settings.embedding_model
+        if backend == "ollama":
+            return self.settings.ollama_embed_model or "ollama-default"
+        return "hash"
+
+    def _validate_corpus_compatibility(self, corpus_name: str) -> None:
+        manifest_path = self._manifest_path(corpus_name)
+        if not manifest_path.exists():
+            raise ValueError(f"Corpus '{corpus_name}' has not been built yet. Build it before asking questions.")
+
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_backend = payload.get("embedding_backend")
+        manifest_model = payload.get("embedding_model")
+        current_backend = self.settings.embedding_backend
+        current_model = self._embedding_model_label()
+
+        if not manifest_backend or not manifest_model:
+            raise ValueError(
+                f"Corpus '{corpus_name}' was built with an older index format. Rebuild this corpus before querying it."
+            )
+
+        if manifest_backend and manifest_backend != current_backend:
+            raise ValueError(
+                f"Corpus '{corpus_name}' was built with embedding backend '{manifest_backend}' "
+                f"but the app is using '{current_backend}'. Rebuild this corpus to query it."
+            )
+
+        if manifest_model and manifest_model != current_model:
+            raise ValueError(
+                f"Corpus '{corpus_name}' was built with embedding model '{manifest_model}' "
+                f"but the app is using '{current_model}'. Rebuild this corpus to query it."
+            )
