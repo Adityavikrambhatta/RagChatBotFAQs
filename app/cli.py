@@ -7,11 +7,11 @@ from pathlib import Path
 import uvicorn
 
 from app.config import get_settings
-from app.service import RagFaqService
+from app.service import ConversationalRagService
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="RAG FAQ chatbot utilities")
+    parser = argparse.ArgumentParser(description="Document Q&A Assistant CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build = subparsers.add_parser("build-corpus", help="Build or refresh a corpus from local files")
@@ -22,13 +22,14 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="Run the FastAPI server locally")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--reload", action="store_true")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     settings = get_settings()
-    service = RagFaqService(settings)
+    service = ConversationalRagService(settings)
 
     if args.command == "build-corpus":
         response = service.build_corpus(
@@ -40,7 +41,7 @@ def main() -> None:
         return
 
     if args.command == "serve":
-        uvicorn.run("app.main:app", host=args.host, port=args.port, reload=False)
+        uvicorn.run("app.main:app", host=args.host, port=args.port, reload=args.reload)
 
 
 if __name__ == "__main__":

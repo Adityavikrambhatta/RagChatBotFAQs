@@ -1,6 +1,17 @@
 import { startTransition, useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8010";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+function routeFromHash() {
+  return window.location.hash === "#/admin" ? "admin" : "chat";
+}
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `session-${Date.now()}`;
+}
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -11,9 +22,9 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
-function formatTimestamp(value) {
+function formatDate(value) {
   if (!value) {
-    return "Not built yet";
+    return "Not available";
   }
   try {
     return new Intl.DateTimeFormat(undefined, {
@@ -25,70 +36,141 @@ function formatTimestamp(value) {
   }
 }
 
+function SourceBadge({ source }) {
+  return (
+    <div className="source-card">
+      <div className="source-meta">
+        <strong>{source.source_name}</strong>
+        <span>{source.page ? `p. ${source.page}` : source.source_type}</span>
+      </div>
+      <p>{source.preview}</p>
+    </div>
+  );
+}
+
 export default function App() {
+  const [route, setRoute] = useState(routeFromHash());
   const [health, setHealth] = useState(null);
   const [corpora, setCorpora] = useState([]);
-  const [selectedCorpus, setSelectedCorpus] = useState("product-support");
-  const [buildCorpusName, setBuildCorpusName] = useState("product-support");
+  const [sessions, setSessions] = useState([]);
+  const [selectedCorpus, setSelectedCorpus] = useState("document-qa");
+  const [documents, setDocuments] = useState([]);
+  const [chunks, setChunks] = useState([]);
+  const [previewHits, setPreviewHits] = useState([]);
+  const [previewQuestion, setPreviewQuestion] = useState("What does the support guide recommend for follow-up questions?");
+  const [buildCorpusName, setBuildCorpusName] = useState("document-qa");
   const [files, setFiles] = useState([]);
+  const [forceRebuild, setForceRebuild] = useState(true);
   const [replaceExisting, setReplaceExisting] = useState(true);
-  const [forceRebuild, setForceRebuild] = useState(false);
   const [question, setQuestion] = useState("");
-  const [topK, setTopK] = useState(5);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [activeAnswer, setActiveAnswer] = useState(null);
-  const [status, setStatus] = useState("Connect a corpus and ask your first support question.");
-  const [loadingBuild, setLoadingBuild] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [activeSources, setActiveSources] = useState([]);
+  const [sessionId, setSessionId] = useState(createSessionId());
+  const [status, setStatus] = useState("Ready to ingest a corpus or start chatting.");
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [adminProgress, setAdminProgress] = useState("");
+  const [lastIngestResult, setLastIngestResult] = useState(null);
 
-  async function refreshCorpora() {
-    const items = await fetchJson(`${API_BASE}/api/corpora`);
+  useEffect(() => {
+    const onHashChange = () => setRoute(routeFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    if (!window.location.hash) {
+      window.location.hash = "#/chat";
+    }
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  async function refreshOverview() {
+    const [healthPayload, overviewPayload] = await Promise.all([
+      fetchJson(`${API_BASE}/api/health`),
+      fetchJson(`${API_BASE}/api/admin/overview`)
+    ]);
+
+    let nextCorpus = healthPayload.default_corpus || "";
+
     startTransition(() => {
-      setCorpora(items);
-      if (items.length > 0) {
-        const firstCorpus = items[0].corpus_name;
-        setSelectedCorpus((current) =>
-          !current || !items.some((corpus) => corpus.corpus_name === current) ? firstCorpus : current
-        );
-        setBuildCorpusName((current) =>
-          !current || !items.some((corpus) => corpus.corpus_name === current) ? firstCorpus : current
-        );
+      setHealth(healthPayload);
+      setCorpora(overviewPayload.corpora);
+      setSessions(overviewPayload.sessions);
+      if (overviewPayload.corpora.length > 0) {
+        const defaultCorpus = overviewPayload.corpora.some((item) => item.corpus_name === selectedCorpus)
+          ? selectedCorpus
+          : overviewPayload.corpora[0].corpus_name;
+        nextCorpus = defaultCorpus;
+        setSelectedCorpus(defaultCorpus);
+        setBuildCorpusName(defaultCorpus);
+      } else if (healthPayload.default_corpus) {
+        nextCorpus = healthPayload.default_corpus;
+        setSelectedCorpus(healthPayload.default_corpus);
+        setBuildCorpusName(healthPayload.default_corpus);
+      } else {
+        nextCorpus = "";
       }
+    });
+
+    if (nextCorpus) {
+      await refreshCorpusDetails(nextCorpus);
+    } else {
+      startTransition(() => {
+        setLastIngestResult(null);
+        setDocuments([]);
+        setChunks([]);
+      });
+    }
+  }
+
+  async function refreshCorpusDetails(corpusName) {
+    if (!corpusName) {
+      return;
+    }
+    const [detailPayload, documentPayload, chunkPayload] = await Promise.all([
+      fetchJson(`${API_BASE}/api/admin/corpus-detail?corpus_name=${encodeURIComponent(corpusName)}`),
+      fetchJson(`${API_BASE}/api/admin/documents?corpus_name=${encodeURIComponent(corpusName)}`),
+      fetchJson(`${API_BASE}/api/admin/chunks?corpus_name=${encodeURIComponent(corpusName)}&limit=40`)
+    ]);
+    startTransition(() => {
+      setLastIngestResult(detailPayload);
+      setDocuments(documentPayload);
+      setChunks(chunkPayload);
     });
   }
 
   useEffect(() => {
-    fetchJson(`${API_BASE}/api/health`)
-      .then((payload) => {
-        setHealth(payload);
-        setSelectedCorpus(payload.default_corpus);
-        setBuildCorpusName(payload.default_corpus);
-      })
-      .catch((error) => setStatus(error.message));
-
-    refreshCorpora().catch((error) => setStatus(error.message));
+    refreshOverview().catch((error) => setStatus(error.message));
   }, []);
+
+  useEffect(() => {
+    refreshCorpusDetails(selectedCorpus).catch((error) => {
+      setLastIngestResult(null);
+      setDocuments([]);
+      setChunks([]);
+      setStatus(error.message);
+    });
+  }, [selectedCorpus]);
 
   async function handleBuild(event) {
     event.preventDefault();
     if (!buildCorpusName.trim()) {
-      setStatus("Choose a corpus name before uploading files.");
+      setStatus("Choose a corpus name first.");
       return;
     }
     if (files.length === 0) {
-      setStatus("Select one or more CSV, Excel, or PDF files to build the corpus.");
+      setStatus("Upload at least one PDF or text document.");
       return;
     }
 
     const formData = new FormData();
     formData.append("corpus_name", buildCorpusName.trim());
-    formData.append("replace_existing", String(replaceExisting));
     formData.append("force_rebuild", String(forceRebuild));
+    formData.append("replace_existing", String(replaceExisting));
     for (const file of files) {
       formData.append("files", file);
     }
 
-    setLoadingBuild(true);
+    setLoadingAdmin(true);
+    setAdminProgress(`Uploading ${files.length} file(s) and preparing the corpus...`);
+    setStatus("Upload started. PDF extraction and embedding can take a little while for larger files.");
     try {
       const payload = await fetchJson(`${API_BASE}/api/corpora/upload-build`, {
         method: "POST",
@@ -96,25 +178,51 @@ export default function App() {
       });
       setSelectedCorpus(payload.corpus_name);
       setBuildCorpusName(payload.corpus_name);
+      setLastIngestResult(payload);
       setStatus(
-        `Built ${payload.corpus_name} from ${payload.uploaded_files.length} file(s) and indexed ${payload.chunk_count} chunks.`
+        `Indexed ${payload.input_file_count} file(s) into ${payload.chunk_count} chunks for corpus ${payload.corpus_name}.`
       );
+      setAdminProgress("Upload complete. Corpus index refreshed successfully.");
       setFiles([]);
-      await refreshCorpora();
+      await refreshOverview();
+      await refreshCorpusDetails(payload.corpus_name);
     } catch (error) {
+      setAdminProgress("");
       setStatus(error.message);
     } finally {
-      setLoadingBuild(false);
+      setLoadingAdmin(false);
     }
   }
 
-  async function handleAsk(event) {
+  async function handlePreview(event) {
     event.preventDefault();
-    if (!question.trim()) {
-      setStatus("Ask a question so the assistant can retrieve matching FAQ evidence.");
+    if (!previewQuestion.trim()) {
+      setStatus("Ask a preview query to inspect retrieved chunks.");
       return;
     }
+    try {
+      const payload = await fetchJson(`${API_BASE}/api/admin/retrieve-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          corpus_name: selectedCorpus,
+          question: previewQuestion.trim(),
+          top_k: 4
+        })
+      });
+      setPreviewHits(payload);
+      setStatus(`Retrieved ${payload.length} chunk(s) for admin preview.`);
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
 
+  async function handleSend(event) {
+    event.preventDefault();
+    if (!question.trim()) {
+      setStatus("Type a question before sending.");
+      return;
+    }
     setLoadingChat(true);
     try {
       const payload = await fetchJson(`${API_BASE}/api/chat`, {
@@ -123,21 +231,14 @@ export default function App() {
         body: JSON.stringify({
           corpus_name: selectedCorpus,
           question: question.trim(),
-          top_k: Number(topK)
+          session_id: sessionId
         })
       });
-      const entry = {
-        question: question.trim(),
-        answer: payload.answer,
-        citations: payload.citations,
-        corpusName: payload.corpus_name
-      };
-      setActiveAnswer(entry);
-      startTransition(() => {
-        setChatHistory((current) => [entry, ...current].slice(0, 8));
-      });
+      setSessionId(payload.session_id);
+      setMessages(payload.chat_history);
+      setActiveSources(payload.sources);
       setQuestion("");
-      setStatus(`Retrieved ${payload.retrieval_count} evidence block(s) from ${payload.corpus_name}.`);
+      setStatus(`Answered using ${payload.retrieval_count} supporting chunk(s).`);
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -145,51 +246,95 @@ export default function App() {
     }
   }
 
+  async function loadSessionHistory(nextSessionId) {
+    try {
+      const payload = await fetchJson(`${API_BASE}/api/chat/${encodeURIComponent(nextSessionId)}/history`);
+      const match = sessions.find((item) => item.session_id === nextSessionId);
+      setSessionId(nextSessionId);
+      if (match?.corpus_name) {
+        setSelectedCorpus(match.corpus_name);
+      }
+      setMessages(payload);
+      setActiveSources([]);
+      setStatus(`Loaded session ${nextSessionId}.`);
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
+
+  function startNewChat() {
+    const next = createSessionId();
+    setSessionId(next);
+    setMessages([]);
+    setActiveSources([]);
+    setStatus("Started a fresh conversation.");
+  }
+
   return (
-    <main className="shell">
+    <div className="shell">
       <div className="backdrop backdrop-a" />
       <div className="backdrop backdrop-b" />
 
-      <section className="hero panel">
+      <header className="hero panel">
         <div>
-          <p className="eyebrow">RAG FAQ Studio</p>
-          <h1>Turn support files into a grounded help desk assistant.</h1>
+          <p className="eyebrow">Safe Conversational RAG</p>
+          <h1>Document Q&amp;A assistant for grounded follow-up answers.</h1>
           <p className="lede">
-            Upload error spreadsheets and user manuals, build a local corpus, then ask questions with source-backed
-            answers instead of tribal-memory guesses.
+            Build a corpus from PDFs or text files, inspect chunks on the admin side, and chat with session-aware
+            retrieval on the user side.
           </p>
         </div>
-        <div className="health-strip">
-          <span>API: {health?.status || "connecting"}</span>
-          <span>Embeddings: {health?.embedding_backend || "unknown"}</span>
-          <span>LLM: {health?.ollama_chat_enabled ? "ollama" : "fallback mode"}</span>
+        <div className="hero-bar">
+          <span>Embeddings: {health?.embedding_provider || "loading"}</span>
+          <span>Model: {health?.llm_model || "loading"}</span>
+          <span>Corpus: {selectedCorpus || "none"}</span>
         </div>
-      </section>
+        <nav className="nav-tabs">
+          <button
+            className={route === "chat" ? "tab active" : "tab"}
+            onClick={() => {
+              window.location.hash = "#/chat";
+            }}
+            type="button"
+          >
+            User Chat
+          </button>
+          <button
+            className={route === "admin" ? "tab active" : "tab"}
+            onClick={() => {
+              window.location.hash = "#/admin";
+            }}
+            type="button"
+          >
+            Admin Monitor
+          </button>
+        </nav>
+      </header>
 
-      <section className="workspace">
-        <aside className="rail">
-          <form className="panel build-panel" onSubmit={handleBuild}>
+      <p className="status-banner">{status}</p>
+
+      {route === "admin" ? (
+        <section className="workspace admin-grid">
+          <form className="panel stack" onSubmit={handleBuild}>
             <div className="panel-heading">
-              <h2>Build A Corpus</h2>
-              <p>Drop the latest support files here and refresh your RAG index in one step.</p>
+              <p className="label">Ingestion</p>
+              <h2>Load and chunk documents</h2>
+              <p>Supports `.pdf`, `.txt`, `.text`, and `.md` files through LangChain loaders.</p>
             </div>
-
             <label className="field">
               <span>Corpus name</span>
               <input value={buildCorpusName} onChange={(event) => setBuildCorpusName(event.target.value)} />
             </label>
-
             <label className="upload-zone">
               <input
                 type="file"
-                accept=".csv,.xlsx,.xls,.pdf,.txt,.md"
+                accept=".pdf,.txt,.text,.md"
                 multiple
                 onChange={(event) => setFiles(Array.from(event.target.files || []))}
               />
-              <strong>{files.length > 0 ? `${files.length} file(s) selected` : "Choose CSV, XLSX, PDF, or notes"}</strong>
-              <span>Spreadsheet rows become FAQ records. Manuals become cited retrieval chunks.</span>
+              <strong>{files.length > 0 ? `${files.length} file(s) selected` : "Choose PDF or text documents"}</strong>
+              <span>Large files will be chunked with overlap before embedding.</span>
             </label>
-
             <label className="toggle">
               <input
                 type="checkbox"
@@ -198,151 +343,264 @@ export default function App() {
               />
               <span>Replace existing uploaded files for this corpus</span>
             </label>
-
             <label className="toggle">
               <input type="checkbox" checked={forceRebuild} onChange={(event) => setForceRebuild(event.target.checked)} />
-              <span>Force a full rebuild even if the manifest looks unchanged</span>
+              <span>Always rebuild the vector index</span>
             </label>
-
-            <button className="primary-button" type="submit" disabled={loadingBuild}>
-              {loadingBuild ? "Building corpus..." : "Upload And Build"}
+            <button className="primary-button" type="submit" disabled={loadingAdmin}>
+              {loadingAdmin ? "Indexing..." : "Upload and build"}
             </button>
-
-            <div className="file-list">
-              {files.length === 0 ? <p>No files selected yet.</p> : files.map((file) => <p key={file.name}>{file.name}</p>)}
+            <div className={loadingAdmin ? "progress-card active" : "progress-card"}>
+              <strong>{loadingAdmin ? "Build in progress" : "Ready to build"}</strong>
+              <span>
+                {loadingAdmin
+                  ? adminProgress || "Uploading files, extracting PDF text, chunking, embedding, and storing in Chroma."
+                  : adminProgress || "Choose one or more PDF or text files, then start the corpus build."}
+              </span>
             </div>
           </form>
 
-          <section className="panel corpus-panel">
+          <section className="panel stack">
             <div className="panel-heading">
-              <h2>Available Corpora</h2>
-              <p>Switch the active knowledge base before chatting.</p>
+              <p className="label">Latest Build</p>
+              <h2>Most recent indexing result</h2>
             </div>
-            <div className="corpus-list">
+            {lastIngestResult ? (
+              <div className="build-summary">
+                <div className="summary-stat">
+                  <strong>Corpus</strong>
+                  <span>{lastIngestResult.corpus_name}</span>
+                </div>
+                <div className="summary-stat">
+                  <strong>Uploaded files</strong>
+                  <span>{lastIngestResult.uploaded_files?.join(", ") || "None recorded"}</span>
+                </div>
+                <div className="summary-stat">
+                  <strong>Loaded documents</strong>
+                  <span>{lastIngestResult.loaded_document_count}</span>
+                </div>
+                <div className="summary-stat">
+                  <strong>Chunks created</strong>
+                  <span>{lastIngestResult.chunk_count}</span>
+                </div>
+                <div className="summary-stat">
+                  <strong>Chunk config</strong>
+                  <span>
+                    {lastIngestResult.chunk_size} / {lastIngestResult.chunk_overlap}
+                  </span>
+                </div>
+                <div className="summary-stat">
+                  <strong>Manifest</strong>
+                  <span>{lastIngestResult.manifest_path}</span>
+                </div>
+                <div className="summary-block">
+                  <strong>Sample documents</strong>
+                  <div className="card-list">
+                    {lastIngestResult.sample_documents?.map((doc) => (
+                      <article className="data-card" key={doc.doc_id}>
+                        <div className="card-meta">
+                          <strong>{doc.source_name}</strong>
+                          <span>{doc.page ? `p. ${doc.page}` : doc.source_type}</span>
+                        </div>
+                        <p>{doc.sample_content}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="empty">Build a corpus to see the latest indexing result here.</p>
+            )}
+          </section>
+
+          <section className="panel stack">
+            <div className="panel-heading">
+              <p className="label">Corpora</p>
+              <h2>Available RAG indexes</h2>
+            </div>
+            <div className="card-list">
               {corpora.length === 0 ? <p className="empty">No corpora built yet.</p> : null}
               {corpora.map((corpus) => (
                 <button
                   key={corpus.corpus_name}
-                  className={corpus.corpus_name === selectedCorpus ? "corpus-card active" : "corpus-card"}
+                  className={corpus.corpus_name === selectedCorpus ? "select-card active" : "select-card"}
                   onClick={() => setSelectedCorpus(corpus.corpus_name)}
                   type="button"
                 >
                   <strong>{corpus.corpus_name}</strong>
-                  <span>{corpus.indexed_files} file(s)</span>
+                  <span>{corpus.input_file_count} files</span>
+                  <span>{corpus.loaded_document_count} docs</span>
                   <span>{corpus.chunk_count} chunks</span>
-                  <span>{formatTimestamp(corpus.last_built_at)}</span>
+                  <span>{formatDate(corpus.last_ingested_at)}</span>
                 </button>
               ))}
             </div>
           </section>
-        </aside>
 
-        <section className="chat-stack">
-          <form className="panel ask-panel" onSubmit={handleAsk}>
-            <div className="panel-heading row">
-              <div>
-                <h2>Ask The Bot</h2>
-                <p>Target a corpus, ask naturally, and inspect every cited source chunk.</p>
-              </div>
-              <label className="field compact">
-                <span>Top K</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={topK}
-                  onChange={(event) => setTopK(event.target.value)}
-                />
-              </label>
+          <section className="panel stack">
+            <div className="panel-heading">
+              <p className="label">Documents</p>
+              <h2>Loaded sample content</h2>
             </div>
-
-            <label className="field">
-              <span>Active corpus</span>
-              <input value={selectedCorpus} onChange={(event) => setSelectedCorpus(event.target.value)} />
-            </label>
-
-            <textarea
-              className="question-box"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Example: How do I fix ERR-202 invoice upload timeout?"
-            />
-
-            <div className="actions">
-              <button className="primary-button" type="submit" disabled={loadingChat}>
-                {loadingChat ? "Searching corpus..." : "Ask Question"}
-              </button>
-              <p className="status">{status}</p>
+            <div className="card-list tall">
+              {documents.map((doc) => (
+                <article className="data-card" key={doc.doc_id}>
+                  <div className="card-meta">
+                    <strong>{doc.source_name}</strong>
+                    <span>{doc.page ? `p. ${doc.page}` : doc.source_type}</span>
+                  </div>
+                  <p>{doc.sample_content}</p>
+                </article>
+              ))}
             </div>
-          </form>
-
-          <section className="response-grid">
-            <article className="panel answer-panel">
-              <div className="panel-heading">
-                <h2>Latest Answer</h2>
-                <p>{activeAnswer ? `Grounded in ${activeAnswer.corpusName}` : "Your next answer will appear here."}</p>
-              </div>
-              {activeAnswer ? (
-                <>
-                  <div className="qa-block">
-                    <span className="label">Question</span>
-                    <p>{activeAnswer.question}</p>
-                  </div>
-                  <div className="qa-block">
-                    <span className="label">Answer</span>
-                    <pre>{activeAnswer.answer}</pre>
-                  </div>
-                </>
-              ) : (
-                <p className="empty">
-                  Build a corpus, ask a question, and the answer panel will show grounded output with evidence.
-                </p>
-              )}
-            </article>
-
-            <article className="panel citations-panel">
-              <div className="panel-heading">
-                <h2>Citations</h2>
-                <p>Every answer stays anchored to the indexed spreadsheet rows or manual passages.</p>
-              </div>
-              <div className="citation-list">
-                {!activeAnswer || activeAnswer.citations.length === 0 ? <p className="empty">No citations yet.</p> : null}
-                {activeAnswer?.citations.map((citation) => (
-                  <article className="citation-card" key={citation.chunk_id}>
-                    <header>
-                      <strong>{citation.source_file}</strong>
-                      <span>{citation.source_type}</span>
-                    </header>
-                    <div className="meta-row">
-                      <span>Score {citation.score}</span>
-                      {citation.metadata.page_number ? <span>Page {citation.metadata.page_number}</span> : null}
-                      {citation.metadata.sheet_name ? <span>Sheet {citation.metadata.sheet_name}</span> : null}
-                      {citation.metadata.row_number ? <span>Row {citation.metadata.row_number}</span> : null}
-                    </div>
-                    <p>{citation.snippet}</p>
-                  </article>
-                ))}
-              </div>
-            </article>
           </section>
 
-          <section className="panel history-panel">
+          <section className="panel stack">
             <div className="panel-heading">
-              <h2>Recent Questions</h2>
-              <p>Quickly revisit what you asked while tuning the corpus.</p>
+              <p className="label">Chunk Explorer</p>
+              <h2>Stored chunk previews</h2>
             </div>
-            <div className="history-list">
-              {chatHistory.length === 0 ? <p className="empty">No chat history yet.</p> : null}
-              {chatHistory.map((entry, index) => (
-                <button className="history-card" key={`${entry.question}-${index}`} type="button" onClick={() => setActiveAnswer(entry)}>
-                  <strong>{entry.question}</strong>
-                  <span>{entry.corpusName}</span>
+            <div className="card-list tall">
+              {chunks.map((chunk) => (
+                <article className="data-card" key={chunk.chunk_id}>
+                  <div className="card-meta">
+                    <strong>{chunk.chunk_id}</strong>
+                    <span>{chunk.source_name}</span>
+                  </div>
+                  <p>{chunk.preview}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel stack">
+            <form onSubmit={handlePreview}>
+              <div className="panel-heading">
+                <p className="label">Retriever Preview</p>
+                <h2>Inspect what the RAG sees</h2>
+              </div>
+              <label className="field">
+                <span>Preview query</span>
+                <textarea value={previewQuestion} onChange={(event) => setPreviewQuestion(event.target.value)} rows="4" />
+              </label>
+              <button className="secondary-button" type="submit">
+                Run preview
+              </button>
+            </form>
+            <div className="card-list tall">
+              {previewHits.map((hit) => (
+                <article className="data-card" key={`${hit.chunk_id}-${hit.score}`}>
+                  <div className="card-meta">
+                    <strong>{hit.source_name}</strong>
+                    <span>score {hit.score}</span>
+                  </div>
+                  <p>{hit.preview}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel stack">
+            <div className="panel-heading">
+              <p className="label">Sessions</p>
+              <h2>Recent conversations</h2>
+            </div>
+            <div className="card-list">
+              {sessions.length === 0 ? <p className="empty">No chat sessions yet.</p> : null}
+              {sessions.map((session) => (
+                <button
+                  className="select-card"
+                  key={session.session_id}
+                  onClick={() => loadSessionHistory(session.session_id)}
+                  type="button"
+                >
+                  <strong>{session.corpus_name}</strong>
+                  <span>{session.message_count} messages</span>
+                  <span>{formatDate(session.updated_at)}</span>
+                  <span>{session.preview || "No assistant reply yet."}</span>
                 </button>
               ))}
             </div>
           </section>
         </section>
-      </section>
-    </main>
+      ) : (
+        <section className="workspace user-grid">
+          <aside className="panel stack">
+            <div className="panel-heading">
+              <p className="label">Conversation</p>
+              <h2>Session-aware chat</h2>
+              <p>Chat history is sent through a `MessagesPlaceholder` so follow-up questions stay grounded.</p>
+            </div>
+            <label className="field">
+              <span>Corpus</span>
+              <select value={selectedCorpus} onChange={(event) => setSelectedCorpus(event.target.value)}>
+                {corpora.map((corpus) => (
+                  <option key={corpus.corpus_name} value={corpus.corpus_name}>
+                    {corpus.corpus_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Session id</span>
+              <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
+            </label>
+            <div className="button-row">
+              <button className="secondary-button" onClick={startNewChat} type="button">
+                New session
+              </button>
+              <button className="secondary-button" onClick={() => loadSessionHistory(sessionId)} type="button">
+                Load history
+              </button>
+            </div>
+            <p className="helper">
+              Try follow-ups like “Explain more”, “What about the previous point?”, or “Summarize that section again.”
+            </p>
+          </aside>
+
+          <div className="chat-column">
+            <section className="panel transcript-panel">
+              <div className="panel-heading">
+                <p className="label">Chat Window</p>
+                <h2>User page</h2>
+              </div>
+              <div className="transcript">
+                {messages.length === 0 ? <p className="empty">No messages yet. Ask a grounded question to begin.</p> : null}
+                {messages.map((message, index) => (
+                  <article className={message.role === "assistant" ? "bubble assistant" : "bubble user"} key={`${message.role}-${index}`}>
+                    <span>{message.role === "assistant" ? "Assistant" : "You"}</span>
+                    <p>{message.content}</p>
+                  </article>
+                ))}
+              </div>
+              <form className="composer" onSubmit={handleSend}>
+                <textarea
+                  placeholder="Ask from the uploaded documents..."
+                  rows="4"
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                />
+                <button className="primary-button" type="submit" disabled={loadingChat}>
+                  {loadingChat ? "Answering..." : "Send"}
+                </button>
+              </form>
+            </section>
+
+            <section className="panel stack">
+              <div className="panel-heading">
+                <p className="label">Sources</p>
+                <h2>Grounding evidence</h2>
+              </div>
+              <div className="card-list tall">
+                {activeSources.length === 0 ? <p className="empty">Sources appear here after each answer.</p> : null}
+                {activeSources.map((source, index) => (
+                  <SourceBadge key={`${source.chunk_id}-${index}`} source={source} />
+                ))}
+              </div>
+            </section>
+          </div>
+        </section>
+      )}
+    </div>
   );
 }

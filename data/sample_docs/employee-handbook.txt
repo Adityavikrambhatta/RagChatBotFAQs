@@ -1,0 +1,9 @@
+Employee Handbook Excerpt
+
+The company operates a document support assistant for internal knowledge lookup. Team members should ask factual questions in clear language and expect the assistant to cite the source document when possible. If the assistant cannot find sufficient evidence in the indexed documents, it must say that it does not know instead of inventing an answer.
+
+Support analysts are encouraged to ask follow-up questions such as "Explain more" or "What about the previous point?" after the first answer. In those cases, the assistant should interpret the latest question in the context of the earlier conversation, reformulate it into a standalone search intent, and then retrieve fresh supporting context before answering.
+
+Large policy files, onboarding guides, and long-form notes should be split into chunks before indexing. A practical default for the internal tool is a chunk size of around 1000 characters with an overlap of about 200 characters so that section boundaries are preserved without losing neighboring context.
+
+Administrators must verify that the corpus contains the latest approved documents. They should inspect the list of loaded documents, confirm the total number of chunks, and run a retrieval preview query to ensure that the relevant sections appear before users start relying on the system.

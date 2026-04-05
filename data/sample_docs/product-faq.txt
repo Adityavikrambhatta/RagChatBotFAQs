@@ -1,0 +1,13 @@
+Product FAQ Notes
+
+Question: How should the document assistant handle source grounding?
+Answer: It should surface the retrieved chunks used to produce the answer, including the source file name and page number when that metadata exists.
+
+Question: Which vector database is used in the starter project?
+Answer: The starter project stores embeddings in Chroma because it is simple to run locally and works well for a small to medium corpus.
+
+Question: Which LangChain prompt features are required?
+Answer: The starter project uses a chat prompt template with a system instruction, a message placeholder for chat history, and a human message for the current question.
+
+Question: What pages exist in the UI?
+Answer: There is an admin page for ingestion and monitoring, and a user page for the chat interface only.

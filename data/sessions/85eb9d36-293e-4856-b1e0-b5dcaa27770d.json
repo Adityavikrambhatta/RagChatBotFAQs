@@ -1,0 +1,15 @@
+{
+  "session_id": "85eb9d36-293e-4856-b1e0-b5dcaa27770d",
+  "corpus_name": "document-qa",
+  "updated_at": "2026-04-04T08:34:16.467798+00:00",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Can you give me a summary of the Document"
+    },
+    {
+      "role": "assistant",
+      "content": "The document \"AGILE ATTRIBUTION V7.0\" appears to be a comprehensive manual and specification guide for the Agile Attribution model, version 7.0. It includes:\n\n- An introduction and cloud application manual explaining how to use the cloud-based app, including commands like `user-manual` that direct users to detailed online documentation with step-by-step instructions, output file structures, and troubleshooting tips.\n\n- Details on file path support, authentication, execution of different stages (Stage 1 and Stage 2), status checking, and job termination commands.\n\n- A revised model engine structure that consolidates all project-specific specifications into a single unified Excel file (xlsx format) containing multiple tabs for various components such as model engine, matchback, and screener. This file is stored in a defined folder structure with strict naming conventions.\n\n- Export details for transformed support data at different levels (tactic-level for Stage 1 and pseudo_placement level for Stage 2) added as new columns in specific output files.\n\n- Validation reports in Excel format that outline validation results for parameters in the workbook specifications.\n\nOverall, the document serves as both a user manual and a technical specification for implementing and running the Agile Attribution model in a cloud environment, ensuring standardized file structures, execution processes, and output validations. [AGILE-DEV-TEAM AGILE ATTRIBUTION V7.0]"
+    }
+  ]
+}

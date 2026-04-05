@@ -1,94 +1,65 @@
-# RAG ChatBot FAQs
+# RagChatBotFAQs
 
-Local-first RAG chatbot for support FAQs, spreadsheet-based error catalogs, and PDF user manuals.
+LangChain-based conversational RAG chatbot with a React UI for both admins and end users.
 
-## What this project does
+For a full study guide to the architecture, flows, tradeoffs, and debugging lessons in this codebase, read [docs/project-literature.md](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/docs/project-literature.md).
 
-- Ingests `.csv`, `.xlsx`, `.xls`, `.pdf`, `.txt`, and `.md`
-- Converts spreadsheet rows into FAQ/error knowledge records
-- Chunks PDF/manual content and stores everything in a local Chroma vector database
-- Uses hybrid retrieval:
-  - semantic vector search
-  - keyword and error-code matching
-- Answers user questions through a FastAPI API
-- Includes a React/Vite frontend for corpus upload, build, and chat
-- Can run fully local with Ollama for generation, or fall back to extractive answers if no chat model is configured
-- Supports switching the answer model via environment configuration
+## What this repo delivers
+
+- Answers questions from PDF and text documents
+- Uses `PyPDFLoader` and `TextLoader`
+- Splits large documents with `RecursiveCharacterTextSplitter`
+- Stores embeddings in Chroma
+- Uses a `ChatPromptTemplate` with `MessagesPlaceholder`
+- Handles context-aware follow-up questions
+- Grounds answers in retrieved context and returns `I don't know.` when the context is insufficient
+- Includes:
+  - an admin workspace to ingest documents and inspect chunks
+  - a user workspace for chat-only interaction
 
 ## Architecture
 
-1. Source ingestion
-   - CSV and Excel rows become structured error records
-   - PDF pages are extracted and chunked
-2. Corpus build
-   - A named corpus is built from a local folder
-   - File hashes are stored in a manifest
-   - If the same files are provided again, the build can be skipped
-3. Retrieval
-   - Hybrid merge of vector similarity and fuzzy keyword matching
-   - Error codes receive a high retrieval boost
-4. Answering
-   - OpenAI or Ollama-backed generation if configured
-   - Fallback extractive answer when no LLM is configured
+```text
+Documents -> LangChain loaders -> Recursive splitter -> Embeddings -> Chroma
+User question + chat history -> history-aware retriever -> RAG prompt -> LLM -> grounded answer
+```
 
-## Detailed delivery plan
+## Recommended repo structure
 
-The full execution plan is documented in [docs/project-plan.md](/Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/docs/project-plan.md).
-The product and technical requirements are documented in [docs/requirements.md](/Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/docs/requirements.md).
+```text
+app/
+  main.py
+  service.py
+  langchain_rag.py
+  history.py
+frontend/
+  src/
+data/
+  sample_docs/
+docs/
+tests/
+```
 
-### Phase 1: Foundation
+## Core design choices
 
-- Create a clean Python project with FastAPI, Chroma, pandas, and PDF parsing
-- Define a local data layout:
-  - `data/incoming/`
-  - `data/corpora/`
-  - `data/chroma/`
-- Build a corpus CLI so new file drops can be converted into a fresh RAG index
+1. Safe conversational RAG
+- The answer prompt explicitly limits the model to retrieved context.
+- If the retrieved context does not support the answer, the assistant replies with `I don't know.`
+- Follow-up queries are handled with a history-aware retriever.
 
-### Phase 2: Knowledge normalization
+2. Scalable structure
+- Corpus ingestion, retrieval, and chat history are separated into dedicated modules.
+- Chunk metadata and corpus manifests are persisted for admin inspection.
+- Session history is stored per session so the UI can resume conversations.
 
-- Map spreadsheet rows into a common schema:
-  - `error_code`
-  - `error_message`
-  - `module`
-  - `category`
-  - `cause`
-  - `resolution`
-  - `sheet_name`
-  - `row_number`
-- Preserve source metadata so answers can cite the exact file, sheet, row, or page
-- Add file-hash manifests so the system knows when a rebuild is necessary
+3. UI separation
+- `#/admin` is for ingestion, monitoring, and chunk inspection.
+- `#/chat` is for the end-user chat experience.
 
-### Phase 3: Retrieval quality
-
-- Combine semantic retrieval with direct error-code and fuzzy message matching
-- Tune chunk size for manuals and long troubleshooting guides
-- Add evaluation examples from real support tickets
-- Improve ranking rules for:
-  - exact error code
-  - near-identical error message
-  - troubleshooting steps in the PDF manual
-
-### Phase 4: Chat experience
-
-- Expose API endpoints for:
-  - corpus build
-  - corpus listing
-  - chat
-- Add a UI in the next iteration if needed
-- Return grounded answers with citations only
-
-### Phase 5: Hardening
-
-- Add tests for file normalization and retrieval
-- Add logging and ingestion summaries
-- Support multiple corpora for different products or modules
-- Add incremental refresh and background jobs if corpus size grows
-
-## Local setup
+## Backend setup
 
 ```bash
-cd /Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs
+cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -96,97 +67,83 @@ pip install -e .[dev]
 cp .env.example .env
 ```
 
-## Build a corpus
+### OpenAI option
 
-Put your files in a folder like:
-
-```text
-data/incoming/product-support/
-  errors.csv
-  troubleshooting.xlsx
-  user_manual.pdf
-```
-
-Then run:
+Set in `.env`:
 
 ```bash
-python -m app.cli build-corpus \
-  --corpus-name product-support \
-  --input-dir ./data/incoming/product-support
+RAG_APP_LLM_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+RAG_APP_OPENAI_MODEL=gpt-4.1-mini
+RAG_APP_EMBEDDING_PROVIDER=openai
+RAG_APP_EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-## Start the API
+### Ollama option
+
+Set in `.env`:
 
 ```bash
-python -m app.cli serve
+RAG_APP_LLM_PROVIDER=ollama
+RAG_APP_OLLAMA_CHAT_MODEL=llama3.1
+RAG_APP_EMBEDDING_PROVIDER=ollama
+RAG_APP_OLLAMA_EMBED_MODEL=nomic-embed-text
 ```
 
-Open Swagger UI at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+### Default starter path
 
-## Start the frontend
+The repo is currently configured for OpenAI chat plus OpenAI embeddings.
 
-The frontend defaults to talking to the backend at `http://127.0.0.1:8010`.
+## Pricing estimates
+
+The current repo configuration uses:
+
+- Chat model: `gpt-4.1-mini`
+- Embedding model: `text-embedding-3-small`
+
+Estimated OpenAI API cost:
+
+- `gpt-4.1-mini` input tokens: about `$0.004` per `10,000` tokens
+- `gpt-4.1-mini` output tokens: about `$0.016` per `10,000` tokens
+- `gpt-4.1-mini` cached input tokens: about `$0.001` per `10,000` tokens
+- `text-embedding-3-small`: about `$0.0002` per `10,000` tokens
+
+Example estimates:
+
+- `10,000` chat input tokens + `2,000` chat output tokens is about `$0.0072`
+- `10,000` embedded tokens is about `$0.0002`
+
+These are pricing estimates based on OpenAI's pricing page and can change over time, so verify before budgeting.
+
+## Run the backend
 
 ```bash
-cd /Users/aditya_vikram_bhattacharya/Documents/CODE/RagChatBotFAQs/frontend
+python -m app.cli serve --reload
+```
+
+Swagger: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+## Run the frontend
+
+```bash
+cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/frontend
 npm install
 npm run dev
 ```
 
-Open the app at [http://127.0.0.1:5173](http://127.0.0.1:5173)
+Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 
-If your API runs on a different port, start the frontend with:
+## Sample ingestion flow
 
-```bash
-VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
-```
-
-## Optional: run with Ollama locally
-
-If you want local generation and optionally local embeddings:
-
-1. Install Ollama
-2. Pull models, for example:
+Build the bundled sample corpus:
 
 ```bash
-ollama pull llama3.1
-ollama pull nomic-embed-text
+python -m app.cli build-corpus \
+  --corpus-name document-qa \
+  --input-dir ./data/sample_docs
 ```
 
-3. Update `.env`:
-
-```bash
-RAG_APP_OLLAMA_CHAT_MODEL=llama3.1
-RAG_APP_EMBEDDING_BACKEND=ollama
-RAG_APP_OLLAMA_EMBED_MODEL=nomic-embed-text
-RAG_APP_LLM_PROVIDER=ollama
-```
-
-The Ollama embeddings API supports local embedding generation over HTTP: [docs](https://docs.ollama.com/api/embed)
-
-## Optional: run with OpenAI
-
-If you want stronger answer generation while keeping local retrieval:
-
-```bash
-RAG_APP_LLM_PROVIDER=openai
-RAG_APP_LLM_MODEL=gpt-5-mini
-RAG_APP_LLM_API_KEY=your_api_key_here
-RAG_APP_PROMPT_MODE=balanced
-```
-
-`balanced` makes the assistant synthesize across retrieved evidence more naturally. If you want the old behavior, switch to:
-
-```bash
-RAG_APP_PROMPT_MODE=strict
-```
-
-You can also loosen retrieval slightly with:
-
-```bash
-RAG_APP_DEFAULT_TOP_K=8
-RAG_APP_RETRIEVAL_KEYWORD_MIN_SCORE=0.35
-```
+Or upload PDFs / `.txt` / `.text` / `.md` files from the admin page.
 
 ## API endpoints
 
@@ -194,21 +151,34 @@ RAG_APP_RETRIEVAL_KEYWORD_MIN_SCORE=0.35
 - `GET /api/corpora`
 - `POST /api/corpora/build`
 - `POST /api/corpora/upload-build`
+- `GET /api/admin/overview`
+- `GET /api/admin/documents`
+- `GET /api/admin/chunks`
+- `GET /api/admin/sessions`
+- `POST /api/admin/retrieve-preview`
 - `POST /api/chat`
+- `GET /api/chat/{session_id}/history`
 
-## Example chat request
+## Prompting behavior
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "corpus_name": "product-support",
-    "question": "How do I fix ERR-101 login failed?"
-  }'
-```
+The backend uses:
 
-## Notes
+- a system prompt for standalone-question rewriting
+- a `MessagesPlaceholder` for prior conversation
+- a grounded answer prompt that sees retrieved context only
 
-- Chroma local persistence is a good fit for embedded/local workflows: [docs](https://cookbook.chromadb.dev/core/clients/)
-- FastAPI file and JSON request handling docs: [FastAPI](https://fastapi.tiangolo.com/tutorial/request-files/)
-- Pandas remains the simplest path for CSV/XLSX ingestion: [pandas](https://pandas.pydata.org/docs/)
+That means follow-ups like:
+
+- `Explain more`
+- `What about the previous point?`
+- `Summarize the second recommendation`
+
+can be resolved against previous turns before retrieval happens.
+
+## GitHub checklist
+
+- Push this repo to `main`
+- Add screenshots of `#/admin` and `#/chat`
+- Add your `.env.example`
+- Keep sample docs in `data/sample_docs`
+- Add a short demo video or GIF if you want your repo to stand out

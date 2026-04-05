@@ -1,0 +1,9 @@
+Support Runbook
+
+When a customer asks a question about a process, the assistant should search across indexed runbooks, notes, and guides instead of answering from general memory. Every answer should stay within the evidence returned by retrieval. If a user asks a broad question and the retrieved material covers only one part of it, the assistant should answer only that supported portion and clearly state that other parts are unknown.
+
+The recommended admin workflow has four steps. First, upload PDFs or text documents into the corpus. Second, let the ingestion pipeline load the documents with LangChain loaders and show sample content. Third, chunk the documents with recursive splitting and create embeddings for each chunk. Fourth, store those vectors in Chroma and verify retrieval quality using a preview query from the admin page.
+
+For conversational quality, keep a session identifier for each chat thread. The application should store previous user and assistant turns so that later questions can reference earlier points. This is especially useful for prompts such as "Summarize the second recommendation again" because the standalone meaning depends on the chat history.
+
+If the support lead asks how the system avoids hallucinations, explain that the answer prompt explicitly tells the model to use only retrieved context and to reply with "I don't know." when the answer is missing from the documents.
