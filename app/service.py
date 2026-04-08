@@ -66,7 +66,7 @@ class ConversationalRagService:
             "Embedding provider for '%s': %s (%s)",
             normalized_corpus,
             self.settings.embedding_provider,
-            self.settings.embedding_model,
+            self.settings.active_embedding_model(),
         )
         reset_collection(self.settings, normalized_corpus)
         vector_store = get_vector_store(self.settings, normalized_corpus, embeddings)
@@ -216,7 +216,7 @@ class ConversationalRagService:
             "Chat request for corpus '%s' session '%s' using provider '%s'",
             normalized_corpus,
             active_session_id,
-            self.settings.llm_provider,
+            f"{self.settings.llm_provider}:{self.settings.active_llm_model()}",
         )
         if self.settings.llm_provider.lower() == "demo":
             supporting_docs, answer = self._demo_chat(normalized_corpus, question, existing_messages, top_k)

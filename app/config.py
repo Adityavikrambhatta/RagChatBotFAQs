@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=1000, alias="RAG_APP_CHUNK_SIZE")
     chunk_overlap: int = Field(default=200, alias="RAG_APP_CHUNK_OVERLAP")
     default_top_k: int = Field(default=4, alias="RAG_APP_DEFAULT_TOP_K")
-    embedding_provider: str = Field(default="huggingface", alias="RAG_APP_EMBEDDING_PROVIDER")
-    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="RAG_APP_EMBEDDING_MODEL")
-    llm_provider: str = Field(default="openai", alias="RAG_APP_LLM_PROVIDER")
+    embedding_provider: str = Field(default="ollama", alias="RAG_APP_EMBEDDING_PROVIDER")
+    embedding_model: str = Field(default="nomic-embed-text", alias="RAG_APP_EMBEDDING_MODEL")
+    llm_provider: str = Field(default="ollama", alias="RAG_APP_LLM_PROVIDER")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4.1-mini", alias="RAG_APP_OPENAI_MODEL")
     openai_base_url: str | None = Field(default=None, alias="RAG_APP_OPENAI_BASE_URL")
@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     def collection_name_for(self, corpus_name: str) -> str:
         safe = "-".join(corpus_name.strip().lower().split())
         return f"{self.collection_prefix}{safe}"
+
+    def active_embedding_model(self) -> str:
+        if self.embedding_provider.lower() == "ollama":
+            return self.ollama_embedding_model
+        return self.embedding_model
+
+    def active_llm_model(self) -> str:
+        if self.llm_provider.lower() == "ollama":
+            return self.ollama_chat_model
+        return self.openai_model
 
 
 @lru_cache

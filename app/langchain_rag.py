@@ -13,9 +13,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import Settings
@@ -106,39 +104,17 @@ def build_embeddings(settings: Settings):
     if provider in {"demo", "local"}:
         logger.info("Using demo/local hash embeddings")
         return SimpleHashEmbeddings()
-    if provider == "openai":
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is required when using openai embeddings.")
-        logger.info("Using OpenAI embeddings model '%s'", settings.embedding_model)
-        return OpenAIEmbeddings(
-            model=settings.embedding_model,
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            check_embedding_ctx_length=False,
-        )
     if provider == "ollama":
         logger.info("Using Ollama embeddings model '%s'", settings.ollama_embedding_model)
         return OllamaEmbeddings(model=settings.ollama_embedding_model, base_url=settings.ollama_base_url)
-    if provider == "huggingface":
-        logger.info("Using Hugging Face embeddings model '%s'", settings.embedding_model)
-        return HuggingFaceEmbeddings(model_name=settings.embedding_model)
-    raise ValueError(f"Unsupported embedding provider: {settings.embedding_provider}")
+    # OpenAI and Hugging Face support are intentionally disabled in this Ollama-only build.
+    raise ValueError(f"Unsupported embedding provider for this Ollama build: {settings.embedding_provider}")
 
 
 def build_llm(settings: Settings):
     provider = settings.llm_provider.lower()
     if provider == "demo":
         raise ValueError("Demo mode does not create an LLM-backed chain.")
-    if provider == "openai":
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is required when using the OpenAI chat model.")
-        logger.info("Using OpenAI chat model '%s'", settings.openai_model)
-        return ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            temperature=settings.llm_temperature,
-        )
     if provider == "ollama":
         logger.info("Using Ollama chat model '%s'", settings.ollama_chat_model)
         return ChatOllama(
@@ -146,7 +122,8 @@ def build_llm(settings: Settings):
             base_url=settings.ollama_base_url,
             temperature=settings.llm_temperature,
         )
-    raise ValueError(f"Unsupported LLM provider: {settings.llm_provider}")
+    # OpenAI support is intentionally disabled in this Ollama-only build.
+    raise ValueError(f"Unsupported LLM provider for this Ollama build: {settings.llm_provider}")
 
 
 def reset_collection(settings: Settings, corpus_name: str) -> None:

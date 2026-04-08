@@ -1,0 +1,54 @@
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: ragchatbot-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Containerfile.backend
+    container_name: ragchatbot-backend
+    depends_on:
+      - ollama
+    environment:
+      RAG_APP_DATA_DIR: /app/data
+      RAG_APP_DEFAULT_CORPUS: document-qa
+      RAG_APP_COLLECTION_PREFIX: rag_
+      RAG_APP_CHUNK_SIZE: 1000
+      RAG_APP_CHUNK_OVERLAP: 200
+      RAG_APP_DEFAULT_TOP_K: 4
+      RAG_APP_EMBEDDING_PROVIDER: ollama
+      RAG_APP_EMBEDDING_MODEL: nomic-embed-text
+      RAG_APP_LLM_PROVIDER: ollama
+      RAG_APP_OLLAMA_BASE_URL: http://ollama:11434
+      RAG_APP_OLLAMA_CHAT_MODEL: llama3.1
+      RAG_APP_OLLAMA_EMBED_MODEL: nomic-embed-text
+      RAG_APP_LLM_TEMPERATURE: 0.0
+      RAG_APP_FRONTEND_ORIGIN: http://localhost:8080
+    ports:
+      - "8000:8000"
+    volumes:
+      - rag-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: ragchatbot-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  rag-data:

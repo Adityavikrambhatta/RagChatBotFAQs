@@ -3,6 +3,18 @@
 LangChain-based conversational RAG chatbot with a React UI for both admins and end users.
 
 For a full study guide to the architecture, flows, tradeoffs, and debugging lessons in this codebase, read [docs/project-literature.md](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/docs/project-literature.md).
+For container deployment instructions, read [docs/podman-deployment.md](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/docs/podman-deployment.md).
+
+## Quick Start
+
+```bash
+cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
+podman compose up --build -d
+podman exec ragchatbot-ollama ollama pull llama3.1
+podman exec ragchatbot-ollama ollama pull nomic-embed-text
+```
+
+Open [http://localhost:8080](http://localhost:8080) for the app and [http://localhost:8080/docs](http://localhost:8080/docs) for the API docs.
 
 ## What this repo delivers
 
@@ -67,19 +79,7 @@ pip install -e .[dev]
 cp .env.example .env
 ```
 
-### OpenAI option
-
-Set in `.env`:
-
-```bash
-RAG_APP_LLM_PROVIDER=openai
-OPENAI_API_KEY=your_key_here
-RAG_APP_OPENAI_MODEL=gpt-4.1-mini
-RAG_APP_EMBEDDING_PROVIDER=openai
-RAG_APP_EMBEDDING_MODEL=text-embedding-3-small
-```
-
-### Ollama option
+### Ollama configuration
 
 Set in `.env`:
 
@@ -87,33 +87,70 @@ Set in `.env`:
 RAG_APP_LLM_PROVIDER=ollama
 RAG_APP_OLLAMA_CHAT_MODEL=llama3.1
 RAG_APP_EMBEDDING_PROVIDER=ollama
+RAG_APP_EMBEDDING_MODEL=nomic-embed-text
 RAG_APP_OLLAMA_EMBED_MODEL=nomic-embed-text
+RAG_APP_OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+Start Ollama locally and pull the required models:
+
+```bash
+ollama serve
+ollama pull llama3.1
+ollama pull nomic-embed-text
 ```
 
 ### Default starter path
 
-The repo is currently configured for OpenAI chat plus OpenAI embeddings.
+The repo is now configured for Ollama chat plus Ollama embeddings by default. OpenAI sections are intentionally disabled in code and left only as commented legacy references in `.env.example`.
 
-## Pricing estimates
+## Podman deployment
 
-The current repo configuration uses:
+This repo now includes a Podman-based stack:
 
-- Chat model: `gpt-4.1-mini`
-- Embedding model: `text-embedding-3-small`
+- `podman-compose.yml`
+- [Containerfile.backend](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/Containerfile.backend)
+- [frontend/Containerfile](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/frontend/Containerfile)
+- [frontend/nginx.conf](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/frontend/nginx.conf)
 
-Estimated OpenAI API cost:
+Start the containers:
 
-- `gpt-4.1-mini` input tokens: about `$0.004` per `10,000` tokens
-- `gpt-4.1-mini` output tokens: about `$0.016` per `10,000` tokens
-- `gpt-4.1-mini` cached input tokens: about `$0.001` per `10,000` tokens
-- `text-embedding-3-small`: about `$0.0002` per `10,000` tokens
+```bash
+cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
+podman compose up --build -d
+```
 
-Example estimates:
+Download the Ollama models inside the running Ollama container:
 
-- `10,000` chat input tokens + `2,000` chat output tokens is about `$0.0072`
-- `10,000` embedded tokens is about `$0.0002`
+```bash
+podman exec ragchatbot-ollama ollama pull llama3.1
+podman exec ragchatbot-ollama ollama pull nomic-embed-text
+```
 
-These are pricing estimates based on OpenAI's pricing page and can change over time, so verify before budgeting.
+Open the app:
+
+- Frontend UI: [http://localhost:8080](http://localhost:8080)
+- Backend docs: [http://localhost:8080/docs](http://localhost:8080/docs)
+- Direct backend: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+Stop the containers:
+
+```bash
+cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
+podman compose down
+```
+
+Makefile shortcuts:
+
+```bash
+make podman-up
+make podman-pull-models
+make podman-down
+```
+
+### Platform note
+
+The Podman setup is intended for Linux, Windows, and macOS. Native iOS container hosting is not supported by Podman, so for Apple mobile devices the app is something you access through the browser after it is running on another machine.
 
 ## Run the backend
 

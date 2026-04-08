@@ -182,18 +182,13 @@ Each chunk is assigned a `chunk_id`, which becomes useful for:
 
 Embedding provider selection happens in [langchain_rag.py](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/app/langchain_rag.py).
 
-The project supports:
+The project is now configured for an Ollama-first path.
 
-- OpenAI
-- Ollama
-- Hugging Face
-- local demo hashing
+The active embedding setup is:
 
-Your current primary path has been:
+- Ollama embeddings: `nomic-embed-text`
 
-- OpenAI embeddings: `text-embedding-3-small`
-
-This means chunk text is sent to OpenAI, converted into vectors, and then stored in Chroma.
+This means chunk text is sent to the local or containerized Ollama service, converted into vectors, and then stored in Chroma.
 
 ## 5. Vector store is built
 
@@ -378,7 +373,7 @@ Warnings like:
 look scary, but they are often not the root problem. The real issue may be:
 
 - env config
-- OpenAI client config
+- missing Ollama models
 - response model bugs
 - frontend fetch failures
 
@@ -391,15 +386,16 @@ Important settings:
 - `RAG_APP_EMBEDDING_PROVIDER`
 - `RAG_APP_EMBEDDING_MODEL`
 - `RAG_APP_LLM_PROVIDER`
-- `RAG_APP_OPENAI_MODEL`
-- `OPENAI_API_KEY`
+- `RAG_APP_OLLAMA_CHAT_MODEL`
+- `RAG_APP_OLLAMA_EMBED_MODEL`
+- `RAG_APP_OLLAMA_BASE_URL`
 - `RAG_APP_CHUNK_SIZE`
 - `RAG_APP_CHUNK_OVERLAP`
 
 One subtle but important lesson from debugging:
 
 - blank env values can still be read as strings
-- an empty `RAG_APP_OPENAI_BASE_URL` can break the OpenAI client
+- stale provider values can silently point retrieval or chat at the wrong backend
 
 So configuration parsing matters almost as much as model selection.
 

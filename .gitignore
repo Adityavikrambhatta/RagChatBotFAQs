@@ -8,6 +8,7 @@ __pycache__/
 data/incoming/
 data/chroma/
 data/corpora/
+data/sessions/*.json
 data/cache/
 *.pyc
 !data/.gitkeep

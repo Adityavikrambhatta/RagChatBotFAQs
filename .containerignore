@@ -1,0 +1,10 @@
+.git
+.venv
+__pycache__
+*.pyc
+data/chroma
+data/corpora
+data/incoming
+data/sessions
+frontend/node_modules
+frontend/dist

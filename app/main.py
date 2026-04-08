@@ -24,6 +24,8 @@ allowed_origins = {
     "http://127.0.0.1:5174",
     "http://localhost:5175",
     "http://127.0.0.1:5175",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
 }
 
 app = FastAPI(title="Document Q&A Assistant", version="0.2.0")
@@ -42,14 +44,13 @@ def get_service(settings: Settings = Depends(get_settings)) -> ConversationalRag
 
 @app.get("/api/health", response_model=HealthResponse)
 def health(settings: Settings = Depends(get_settings)) -> HealthResponse:
-    llm_model = settings.openai_model if settings.llm_provider.lower() == "openai" else settings.ollama_chat_model
     return HealthResponse(
         status="ok",
         default_corpus=settings.default_corpus,
         embedding_provider=settings.embedding_provider,
-        embedding_model=settings.embedding_model,
+        embedding_model=settings.active_embedding_model(),
         llm_provider=settings.llm_provider,
-        llm_model=llm_model,
+        llm_model=settings.active_llm_model(),
         frontend_origin=settings.frontend_origin,
     )
 

@@ -1,6 +1,18 @@
 import { startTransition, useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+function resolveApiBase() {
+  const configuredBase = import.meta.env.VITE_API_BASE_URL;
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, "");
+  }
+  const devPorts = new Set(["5173", "5174", "5175"]);
+  if (devPorts.has(window.location.port)) {
+    return "http://127.0.0.1:8000";
+  }
+  return "";
+}
+
+const API_BASE = resolveApiBase();
 
 function routeFromHash() {
   return window.location.hash === "#/admin" ? "admin" : "chat";
@@ -278,17 +290,17 @@ export default function App() {
       <header className="hero panel">
         <div>
           <p className="eyebrow">Safe Conversational RAG</p>
-          <h1>Document Q&amp;A assistant for grounded follow-up answers.</h1>
+          <div>Document Q&amp;A assistant for grounded follow-up answers.</div>
           <p className="lede">
             Build a corpus from PDFs or text files, inspect chunks on the admin side, and chat with session-aware
             retrieval on the user side.
           </p>
         </div>
-        <div className="hero-bar">
+        {/* <div className="hero-bar">
           <span>Embeddings: {health?.embedding_provider || "loading"}</span>
           <span>Model: {health?.llm_model || "loading"}</span>
           <span>Corpus: {selectedCorpus || "none"}</span>
-        </div>
+        </div> */}
         <nav className="nav-tabs">
           <button
             className={route === "chat" ? "tab active" : "tab"}
