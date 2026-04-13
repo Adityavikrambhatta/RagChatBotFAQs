@@ -112,9 +112,9 @@ class ConversationalRagService:
         force_rebuild: bool = False,
         replace_existing: bool = True,
     ) -> IngestResponse:
-        normalized_corpus = normalize_corpus_name(corpus_name)
         if not files:
             raise ValueError("At least one file must be uploaded.")
+        normalized_corpus = self._resolve_upload_corpus_name(corpus_name, files)
         logger.info("Received %s uploaded file(s) for corpus '%s'", len(files), normalized_corpus)
 
         target_dir = self.settings.incoming_dir / normalized_corpus
@@ -253,6 +253,16 @@ class ConversationalRagService:
         manifest = self.settings.corpora_dir / corpus_name / "manifest.json"
         if not manifest.exists():
             raise ValueError(f"Corpus '{corpus_name}' has not been ingested yet.")
+
+    def _resolve_upload_corpus_name(self, requested_name: str, files: list[tuple[str, bytes]]) -> str:
+        trimmed = requested_name.strip()
+        if trimmed:
+            return normalize_corpus_name(trimmed)
+
+        first_name = Path(files[0][0]).stem if files else "corpus"
+        slug = re.sub(r"[^a-z0-9]+", "-", first_name.lower()).strip("-") or "corpus"
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        return normalize_corpus_name(f"{slug}-{timestamp}")
 
     @staticmethod
     def _page_number(metadata: dict[str, object]) -> int | None:

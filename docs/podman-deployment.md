@@ -1,9 +1,8 @@
 # Podman Deployment Guide
 
-This project ships with a three-container Podman stack:
+This project ships with a two-container Podman stack:
 
-- `ollama`: hosts the local chat and embedding models
-- `backend`: FastAPI + LangChain + Chroma
+- `backend`: FastAPI + LangChain + Chroma + OpenAI API access
 - `frontend`: React app served by Nginx, with `/api` proxied to the backend
 
 ## Supported platforms
@@ -14,18 +13,23 @@ This project ships with a three-container Podman stack:
 
 Native iOS container execution is not supported. Use Safari or another mobile browser to access the app after it is running on a desktop or server.
 
+## Before you start
+
+Set your OpenAI credentials in [.env](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/.env):
+
+```bash
+OPENAI_API_KEY=your_key_here
+RAG_APP_LLM_PROVIDER=openai
+RAG_APP_OPENAI_MODEL=gpt-4.1-mini
+RAG_APP_EMBEDDING_PROVIDER=openai
+RAG_APP_EMBEDDING_MODEL=text-embedding-3-small
+```
+
 ## Start the stack
 
 ```bash
 cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
 podman compose up --build -d
-```
-
-## Pull the Ollama models
-
-```bash
-podman exec ragchatbot-ollama ollama pull llama3.1
-podman exec ragchatbot-ollama ollama pull nomic-embed-text
 ```
 
 ## Open the app
@@ -42,11 +46,14 @@ podman compose down
 
 ## Persisted data
 
-Two named volumes are used:
+One named volume is used:
 
-- `ollama-data`: downloaded Ollama models
 - `rag-data`: Chroma data, manifests, uploaded files, and chat session history
 
 ## Troubleshooting
 
-If chat or ingestion fails on a fresh start, the most common cause is that the Ollama models have not been pulled yet. Pull the models first, then retry the upload or chat request.
+If corpus build or chat fails in containers, the most common causes are:
+
+- `OPENAI_API_KEY` is missing or invalid
+- outbound internet access is blocked
+- the `.env` file was not updated before starting the stack

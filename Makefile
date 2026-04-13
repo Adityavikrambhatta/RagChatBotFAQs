@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: backend frontend build-corpus podman-up podman-down podman-pull-models
+.PHONY: backend frontend build-corpus podman-up podman-down
 
 backend:
 	$(PYTHON) -m app.cli serve --reload
@@ -16,7 +16,3 @@ podman-up:
 
 podman-down:
 	podman compose down
-
-podman-pull-models:
-	podman exec ragchatbot-ollama ollama pull llama3.1
-	podman exec ragchatbot-ollama ollama pull nomic-embed-text

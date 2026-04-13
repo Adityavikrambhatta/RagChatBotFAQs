@@ -10,8 +10,6 @@ For container deployment instructions, read [docs/podman-deployment.md](/Users/a
 ```bash
 cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
 podman compose up --build -d
-podman exec ragchatbot-ollama ollama pull llama3.1
-podman exec ragchatbot-ollama ollama pull nomic-embed-text
 ```
 
 Open [http://localhost:8080](http://localhost:8080) for the app and [http://localhost:8080/docs](http://localhost:8080/docs) for the API docs.
@@ -79,34 +77,25 @@ pip install -e .[dev]
 cp .env.example .env
 ```
 
-### Ollama configuration
+### OpenAI configuration
 
 Set in `.env`:
 
 ```bash
-RAG_APP_LLM_PROVIDER=ollama
-RAG_APP_OLLAMA_CHAT_MODEL=llama3.1
-RAG_APP_EMBEDDING_PROVIDER=ollama
-RAG_APP_EMBEDDING_MODEL=nomic-embed-text
-RAG_APP_OLLAMA_EMBED_MODEL=nomic-embed-text
-RAG_APP_OLLAMA_BASE_URL=http://127.0.0.1:11434
-```
-
-Start Ollama locally and pull the required models:
-
-```bash
-ollama serve
-ollama pull llama3.1
-ollama pull nomic-embed-text
+RAG_APP_LLM_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+RAG_APP_OPENAI_MODEL=gpt-4.1-mini
+RAG_APP_EMBEDDING_PROVIDER=openai
+RAG_APP_EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 ### Default starter path
 
-The repo is now configured for Ollama chat plus Ollama embeddings by default. OpenAI sections are intentionally disabled in code and left only as commented legacy references in `.env.example`.
+The repo is now configured for OpenAI chat plus OpenAI embeddings by default.
 
 ## Podman deployment
 
-This repo now includes a Podman-based stack:
+This repo includes a Podman-based stack:
 
 - `podman-compose.yml`
 - [Containerfile.backend](/Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs/Containerfile.backend)
@@ -118,13 +107,6 @@ Start the containers:
 ```bash
 cd /Users/aditya_vikram_bhattacharya/Documents/TuteDude/RagChatBotFAQs
 podman compose up --build -d
-```
-
-Download the Ollama models inside the running Ollama container:
-
-```bash
-podman exec ragchatbot-ollama ollama pull llama3.1
-podman exec ragchatbot-ollama ollama pull nomic-embed-text
 ```
 
 Open the app:
@@ -144,7 +126,6 @@ Makefile shortcuts:
 
 ```bash
 make podman-up
-make podman-pull-models
 make podman-down
 ```
 

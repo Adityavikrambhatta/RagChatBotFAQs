@@ -126,7 +126,7 @@ def build_corpus(payload: CorpusBuildRequest, service: ConversationalRagService 
 
 @app.post("/api/corpora/upload-build", response_model=IngestResponse)
 async def upload_and_build_corpus(
-    corpus_name: str = Form(...),
+    corpus_name: str = Form(""),
     force_rebuild: bool = Form(False),
     replace_existing: bool = Form(True),
     files: list[UploadFile] = File(...),

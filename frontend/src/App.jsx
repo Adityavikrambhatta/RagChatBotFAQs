@@ -65,12 +65,12 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [corpora, setCorpora] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [selectedCorpus, setSelectedCorpus] = useState("document-qa");
+  const [selectedCorpus, setSelectedCorpus] = useState("");
   const [documents, setDocuments] = useState([]);
   const [chunks, setChunks] = useState([]);
   const [previewHits, setPreviewHits] = useState([]);
   const [previewQuestion, setPreviewQuestion] = useState("What does the support guide recommend for follow-up questions?");
-  const [buildCorpusName, setBuildCorpusName] = useState("document-qa");
+  const [buildCorpusName, setBuildCorpusName] = useState("");
   const [files, setFiles] = useState([]);
   const [forceRebuild, setForceRebuild] = useState(true);
   const [replaceExisting, setReplaceExisting] = useState(true);
@@ -111,13 +111,12 @@ export default function App() {
           : overviewPayload.corpora[0].corpus_name;
         nextCorpus = defaultCorpus;
         setSelectedCorpus(defaultCorpus);
-        setBuildCorpusName(defaultCorpus);
-      } else if (healthPayload.default_corpus) {
-        nextCorpus = healthPayload.default_corpus;
-        setSelectedCorpus(healthPayload.default_corpus);
-        setBuildCorpusName(healthPayload.default_corpus);
       } else {
         nextCorpus = "";
+        setSelectedCorpus("");
+      }
+      if (!buildCorpusName && overviewPayload.corpora.length === 0) {
+        setBuildCorpusName("");
       }
     });
 
@@ -163,10 +162,6 @@ export default function App() {
 
   async function handleBuild(event) {
     event.preventDefault();
-    if (!buildCorpusName.trim()) {
-      setStatus("Choose a corpus name first.");
-      return;
-    }
     if (files.length === 0) {
       setStatus("Upload at least one PDF or text document.");
       return;
@@ -335,7 +330,11 @@ export default function App() {
             </div>
             <label className="field">
               <span>Corpus name</span>
-              <input value={buildCorpusName} onChange={(event) => setBuildCorpusName(event.target.value)} />
+              <input
+                placeholder="Leave blank to auto-name from the uploaded file"
+                value={buildCorpusName}
+                onChange={(event) => setBuildCorpusName(event.target.value)}
+              />
             </label>
             <label className="upload-zone">
               <input
@@ -546,6 +545,7 @@ export default function App() {
             <label className="field">
               <span>Corpus</span>
               <select value={selectedCorpus} onChange={(event) => setSelectedCorpus(event.target.value)}>
+                {corpora.length === 0 ? <option value="">No corpora yet</option> : null}
                 {corpora.map((corpus) => (
                   <option key={corpus.corpus_name} value={corpus.corpus_name}>
                     {corpus.corpus_name}
