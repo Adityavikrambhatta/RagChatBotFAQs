@@ -13,7 +13,7 @@ export function TranscriptPanel() {
   }
 
   return (
-    <section className="panel transcript-panel">
+    <div className="panel transcript-panel panel-shell">
       <div className="panel-heading">
         <p className="label">Chat Window</p>
         <h2>User page</h2>
@@ -21,23 +21,23 @@ export function TranscriptPanel() {
       <div className="transcript">
         {messages.length === 0 ? <p className="empty">No messages yet. Ask a grounded question to begin.</p> : null}
         {messages.map((message, index) => (
-          <article className={message.role === "assistant" ? "bubble assistant" : "bubble user"} key={`${message.role}-${index}`}>
+          <div className={message.role === "assistant" ? "bubble assistant" : "bubble user"} key={`${message.role}-${index}`}>
             <span>{message.role === "assistant" ? "Assistant" : "You"}</span>
             <p>{message.content}</p>
-          </article>
+          </div>
         ))}
       </div>
-      <form className="composer" onSubmit={handleSubmit}>
+      <div className="composer panel-inset">
         <textarea
           placeholder="Ask from the uploaded documents..."
           rows="4"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
         />
-        <button className="primary-button" type="submit" disabled={loadingChat}>
+        <button className="primary-button" type="button" onClick={handleSubmit} disabled={loadingChat}>
           {loadingChat ? "Answering..." : "Send"}
         </button>
-      </form>
-    </section>
+      </div>
+    </div>
   );
 }

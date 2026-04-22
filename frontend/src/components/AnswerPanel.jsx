@@ -4,7 +4,7 @@ export function BuildSummaryPanel() {
   const { lastIngestResult } = useCorpusStore();
 
   return (
-    <section className="panel stack">
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Latest Build</p>
         <h2>Most recent indexing result</h2>
@@ -41,13 +41,13 @@ export function BuildSummaryPanel() {
             <strong>Sample documents</strong>
             <div className="card-list">
               {lastIngestResult.sample_documents?.map((doc) => (
-                <article className="data-card" key={doc.doc_id}>
+                <div className="data-card" key={doc.doc_id}>
                   <div className="card-meta">
                     <strong>{doc.source_name}</strong>
                     <span>{doc.page ? `p. ${doc.page}` : doc.source_type}</span>
                   </div>
                   <p>{doc.sample_content}</p>
-                </article>
+                </div>
               ))}
             </div>
           </div>
@@ -55,6 +55,6 @@ export function BuildSummaryPanel() {
       ) : (
         <p className="empty">Build a corpus to see the latest indexing result here.</p>
       )}
-    </section>
+    </div>
   );
 }

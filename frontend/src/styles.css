@@ -84,6 +84,10 @@ button {
   backdrop-filter: blur(18px);
 }
 
+.panel-shell {
+  position: relative;
+}
+
 .hero {
   padding: 30px;
   display: grid;
@@ -215,6 +219,11 @@ button {
   background: rgba(255, 255, 255, 0.58);
 }
 
+.upload-zone:hover {
+  border-color: rgba(203, 90, 47, 0.38);
+  background: rgba(255, 249, 244, 0.78);
+}
+
 .upload-zone input {
   position: absolute;
   inset: 0;
@@ -248,6 +257,13 @@ button {
 .card-list {
   display: grid;
   gap: 12px;
+}
+
+.panel-inset {
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(20, 35, 58, 0.08);
 }
 
 .build-summary {
@@ -294,6 +310,10 @@ button {
   border-radius: 20px;
   padding: 16px;
   text-align: left;
+}
+
+.ui-card {
+  box-shadow: 0 12px 24px rgba(20, 35, 58, 0.06);
 }
 
 .progress-card {
@@ -370,6 +390,7 @@ button {
   justify-self: start;
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(20, 35, 58, 0.08);
+  box-shadow: 0 10px 24px rgba(20, 35, 58, 0.06);
 }
 
 .composer {

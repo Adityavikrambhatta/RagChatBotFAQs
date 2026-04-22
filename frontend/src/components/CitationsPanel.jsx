@@ -5,7 +5,7 @@ export function SourcesPanel() {
   const { activeSources } = useChatStore();
 
   return (
-    <section className="panel stack">
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Sources</p>
         <h2>Grounding evidence</h2>
@@ -16,6 +16,6 @@ export function SourcesPanel() {
           <SourceBadge key={`${source.chunk_id}-${index}`} source={source} />
         ))}
       </div>
-    </section>
+    </div>
   );
 }

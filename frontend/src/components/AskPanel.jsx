@@ -6,7 +6,7 @@ export function UserControlsPanel() {
   const { sessionId, setSessionId, loadSessionHistory, startNewChat } = useChatStore();
 
   return (
-    <aside className="panel stack">
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Conversation</p>
         <h2>Session-aware chat</h2>
@@ -46,6 +46,6 @@ export function UserControlsPanel() {
           </button>
         ))}
       </div>
-    </aside>
+    </div>
   );
 }

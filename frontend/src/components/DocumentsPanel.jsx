@@ -4,22 +4,22 @@ export function DocumentsPanel() {
   const { documents } = useCorpusStore();
 
   return (
-    <section className="panel stack">
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Documents</p>
         <h2>Loaded sample content</h2>
       </div>
       <div className="card-list tall">
         {documents.map((doc) => (
-          <article className="data-card" key={doc.doc_id}>
+          <div className="data-card" key={doc.doc_id}>
             <div className="card-meta">
               <strong>{doc.source_name}</strong>
               <span>{doc.page ? `p. ${doc.page}` : doc.source_type}</span>
             </div>
             <p>{doc.sample_content}</p>
-          </article>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

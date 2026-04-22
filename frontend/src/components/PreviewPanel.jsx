@@ -13,8 +13,8 @@ export function PreviewPanel() {
   }
 
   return (
-    <section className="panel stack">
-      <form onSubmit={handleSubmit}>
+    <div className="panel stack panel-shell">
+      <div className="stack">
         <div className="panel-heading">
           <p className="label">Retriever Preview</p>
           <h2>Inspect what the RAG sees</h2>
@@ -23,21 +23,21 @@ export function PreviewPanel() {
           <span>Preview query</span>
           <textarea value={previewQuestion} onChange={(event) => setPreviewQuestion(event.target.value)} rows="4" />
         </label>
-        <button className="secondary-button" type="submit">
+        <button className="secondary-button" type="button" onClick={handleSubmit}>
           Run preview
         </button>
-      </form>
+      </div>
       <div className="card-list tall">
         {previewHits.map((hit) => (
-          <article className="data-card" key={`${hit.chunk_id}-${hit.score}`}>
+          <div className="data-card" key={`${hit.chunk_id}-${hit.score}`}>
             <div className="card-meta">
               <strong>{hit.source_name}</strong>
               <span>score {hit.score}</span>
             </div>
             <p>{hit.preview}</p>
-          </article>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

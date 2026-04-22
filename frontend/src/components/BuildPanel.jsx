@@ -25,7 +25,7 @@ export function BuildPanel() {
   }
 
   return (
-    <form className="panel stack" onSubmit={handleSubmit}>
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Ingestion</p>
         <h2>Load and chunk documents</h2>
@@ -52,7 +52,7 @@ export function BuildPanel() {
         <input type="checkbox" checked={forceRebuild} onChange={(event) => setForceRebuild(event.target.checked)} />
         <span>Always rebuild the vector index</span>
       </label>
-      <button className="primary-button" type="submit" disabled={loadingAdmin}>
+      <button className="primary-button" type="button" onClick={handleSubmit} disabled={loadingAdmin}>
         {loadingAdmin ? "Indexing..." : "Upload and build"}
       </button>
       <div className={loadingAdmin ? "progress-card active" : "progress-card"}>
@@ -60,9 +60,9 @@ export function BuildPanel() {
         <span>
           {loadingAdmin
             ? adminProgress || "Uploading files, extracting PDF text, chunking, embedding, and storing in Chroma."
-            : adminProgress || "Choose one or more PDF or text files, then start the corpus build."}
+          : adminProgress || "Choose one or more PDF or text files, then start the corpus build."}
         </span>
       </div>
-    </form>
+    </div>
   );
 }

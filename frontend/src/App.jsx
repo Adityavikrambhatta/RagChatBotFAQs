@@ -15,7 +15,7 @@ import { CorpusStoreProvider } from "./stores/CorpusStore";
 
 function AdminView() {
   return (
-    <section className="workspace admin-grid">
+    <div className="workspace admin-grid">
       <BuildPanel />
       <BuildSummaryPanel />
       <CorpusListPanel />
@@ -23,20 +23,20 @@ function AdminView() {
       <ChunksPanel />
       <PreviewPanel />
       <SessionsPanel />
-    </section>
+    </div>
   );
 }
 
 function ChatView() {
   return (
-    <section className="workspace user-grid">
+    <div className="workspace user-grid">
       <UserControlsPanel />
 
       <div className="chat-column">
         <TranscriptPanel />
         <SourcesPanel />
       </div>
-    </section>
+    </div>
   );
 }
 

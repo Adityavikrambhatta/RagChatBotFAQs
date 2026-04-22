@@ -5,7 +5,7 @@ export function CorpusListPanel() {
   const { corpora, selectedCorpus, setSelectedCorpus } = useCorpusStore();
 
   return (
-    <section className="panel stack">
+    <div className="panel stack panel-shell">
       <div className="panel-heading">
         <p className="label">Corpora</p>
         <h2>Available RAG indexes</h2>
@@ -27,6 +27,6 @@ export function CorpusListPanel() {
           </button>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

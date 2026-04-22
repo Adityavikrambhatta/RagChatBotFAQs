@@ -1,6 +1,6 @@
 export function SourceBadge({ source }) {
   return (
-    <div className="source-card">
+    <div className="source-card ui-card">
       <div className="source-meta">
         <strong>{source.source_name}</strong>
         <span>{source.page ? `p. ${source.page}` : source.source_type}</span>
